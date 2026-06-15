@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salve o Prato! - Combate ao Desperdício</title>
+    <style>
+        :root {
+            --primary: #2e7d32;
+            --primary-light: #4caf50;
+            --secondary: #ffa000;
+            --danger: #d32f2f;
+            --bg: #f1f8e9;
+            --text: #333;
+            --white: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #game-container {
+            background: var(--white);
+            width: 100%;
+            max-width: 600px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+            text-align: center;
+            position: relative;
+        }
+
+        /* Header e Status */
+        .game-header {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+        }
+
+        .game-header h1 {
+            margin: 0;
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 15px;
+            background: #e8f5e9;
+            font-weight: bold;
+            border-bottom: 2px solid #c8e6c9;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 10px;
+            background: #ddd;
+        }
+
+        #progress-bar {
+            width: 100%;
+            height: 100%;
+            background: var(--secondary);
+            transition: width 0.1s linear;
+        }
+
+        /* Área do Alimento */
+        #stage {
+            padding: 40px 20px;
+            min-height: 350px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .food-emoji {
+            font-size: 80px;
+            margin-bottom: 10px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .food-name {
+            font-size: 22px;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .food-desc {
+            font-style: italic;
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        /* Botões de Ação */
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            padding: 0 20px 30px;
+        }
+
+        .btn {
+            border: none;
+            padding: 15px 10px;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+        }
+
+        .btn:active { transform: scale(0.95); }
+        .btn:hover { opacity: 0.9; }
+
+        .btn-consume { background-color: var(--primary-light); }
+        .btn-store { background-color: var(--secondary); }
+        .btn-trash { background-color: #795548; }
+
+        /* Modal de Feedback */
+        #feedback-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            z-index: 10;
+        }
+
+        .feedback-icon { font-size: 50px; margin-bottom: 15px; }
+        .feedback-title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .feedback-msg { font-size: 16px; line-height: 1.5; color: #444; margin-bottom: 20px; }
+
+        /* Telas Iniciais e Finais */
+        .screen {
+            padding: 40px 20px;
+            display: none;
+        }
+
+        .screen.active { display: block; }
+
+        .btn-large {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        /* Responsividade */
+        @media (max-width: 480px) {
+            .actions { grid-template-columns: 1fr; }
+            .btn { flex-direction: row; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="game-header">
+        <h1>Salve o Prato!</h1>
+    </div>
+
+    <!-- Tela Inicial -->
+    <div id="start-screen" class="screen active">
+        <div class="food-emoji">🍎</div>
+        <h2>Você está pronto para salvar o planeta?</h2>
+        <p>Milhões de toneladas de comida vão para o lixo todos os dias, desperdiçando água, energia e trabalho humano.</p>
+        <p><strong>Seu objetivo:</strong> Tome a decisão correta para cada alimento antes que o tempo acabe!</p>
+        <button class="btn-large" onclick="startGame()">Começar Missão</button>
+    </div>
+
+    <!-- Interface do Jogo -->
+    <div id="game-ui" style="display:none;">
+        <div class="stats">
+            <span>Pontos: <span id="score">0</span></span>
+            <span>Nível: <span id="level">1</span></span>
+        </div>
+        <div class="progress-bar-container">
+            <div id="progress-bar"></div>
+        </div>
+
+        <div id="stage">
+            <div id="food-emoji" class="food-emoji"></div>
+            <div id="food-name" class="food-name"></div>
+            <div id="food-desc" class="food-desc"></div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-consume" onclick="makeChoice('consume')">
+                <span>🍽️</span> Consumir Agora
+            </button>
+            <button class="btn btn-store" onclick="makeChoice('store')">
+                <span>❄️</span> Preservar / Congelar
+            </button>
+            <button class="btn btn-trash" onclick="makeChoice('compost')">
+                <span>♻️</span> Compostar / Adubar
+            </button>
+        </div>
+    </div>
+
+    <!-- Overlay de Feedback -->
+    <div id="feedback-overlay">
+        <div id="fb-icon" class="feedback-icon"></div>
+        <div id="fb-title" class="feedback-title"></div>
+        <div id="fb-msg" class="feedback-msg"></div>
+        <button class="btn-large" onclick="nextFood()">Próximo Alimento</button>
+    </div>
+
+    <!-- Tela de Fim de Jogo -->
+    <div id="end-screen" class="screen">
+        <h2 id="end-title">Fim da Rodada!</h2>
+        <p id="end-summary"></p>
+        <div style="font-size: 40px; margin: 20px 0;" id="end-rank"></div>
+        <button class="btn-large" onclick="resetGame()">Jogar Novamente</button>
+    </div>
+</div>
+
+<script>
+    // Banco de dados de alimentos e situações
+    const foods = [
+        {
+            name: "Tomates Muito Maduros",
+            emoji: "🍅",
+            desc: "Eles estão bem moles, mas sem mofo.",
+            correct: "consume",
+            tips: {
+                consume: "Boa! Tomates maduros fazem um excelente molho caseiro. Você evitou o lixo!",
+                store: "Quase... Se eles já estão muito maduros, o melhor é processar logo para não estragar de vez.",
+                compost: "Ainda não! Eles podiam virar molho ou sopa antes de virarem adubo."
+            },
+            fact: "Para produzir 1kg de tomate, são gastos cerca de 214 litros de água!"
+        },
+        {
+            name: "Sobras do Jantar",
+            emoji: "🥘",
+            desc: "Sobrou bastante arroz e feijão na panela.",
+            correct: "store",
+            tips: {
+                consume: "Pode ser, mas se você já está satisfeito, forçar a comida também não é saudável.",
+                store: "Exato! Guardar em potes fechados na geladeira garante o almoço de amanhã.",
+                compost: "Desperdício! Comida cozida boa para consumo nunca deve ser descartada."
+            },
+            fact: "O desperdício de alimentos é responsável por 8% das emissões globais de gases estufa."
+        },
+        {
+            name: "Pão de Forma com Mofo",
+            emoji: "🍞",
+            desc: "Você notou pequenas manchas verdes em algumas fatias.",
+            correct: "compost",
+            tips: {
+                consume: "Perigoso! Mofo em pães indica fungos que podem causar intoxicação. Não coma!",
+                store: "Tarde demais. O mofo já se espalhou pelas raízes invisíveis no pão.",
+                compost: "Correto. Se não é seguro comer, o destino ideal é a compostagem para nutrir o solo."
+            },
+            fact: "Retirar apenas a parte mofada não limpa o alimento; os fungos penetram em todo o produto."
+        },
+        {
+            name: "Bananas Escurecidas",
+            emoji: "🍌",
+            desc: "A casca está toda preta, mas a polpa está doce.",
+            correct: "consume",
+            tips: {
+                consume: "Perfeito! Bananas assim são ideais para bolos, vitaminas ou doces.",
+                store: "Você pode congelar sem casca para smoothies, mas consumir logo é ótimo!",
+                compost: "Poderia ter sido aproveitada! O aspecto visual engana, mas o sabor está no auge."
+            },
+            fact: "Bilhões de bananas são descartadas anualmente apenas pela aparência da casca."
+        },
+        {
+            name: "Cascas de Legumes",
+            emoji: "🥔",
+            desc: "Você acabou de descascar batatas e cenouras orgânicas.",
+            correct: "compost",
+            tips: {
+                consume: "Sim! Cascas podem virar chips ou caldos nutritivos. Mas compostar também é ok.",
+                store: "Guardar cascas sujas pode contaminar a geladeira. Melhor usar ou adubar.",
+                compost: "Ótima escolha! Transformar restos orgânicos em adubo fecha o ciclo da agricultura sustentável."
+            },
+            fact: "A compostagem reduz em até 50% o volume de lixo enviado para aterros sanitários."
+        }
+    ];
+
+    let currentFoodIndex = 0;
+    let score = 0;
+    let timeLeft = 100;
+    let gameInterval;
+    let timerInterval;
+
+    const dom = {
+        start: document.getElementById('start-screen'),
+        game: document.getElementById('game-ui'),
+        end: document.getElementById('end-screen'),
+        feedback: document.getElementById('feedback-overlay'),
+        progressBar: document.getElementById('progress-bar'),
+        score: document.getElementById('score'),
+        level: document.getElementById('level'),
+        emoji: document.getElementById('food-emoji'),
+        name: document.getElementById('food-name'),
+        desc: document.getElementById('food-desc'),
+        fbIcon: document.getElementById('fb-icon'),
+        fbTitle: document.getElementById('fb-title'),
+        fbMsg: document.getElementById('fb-msg'),
+        endSummary: document.getElementById('end-summary'),
+        endRank: document.getElementById('end-rank')
+    };
+
+    function startGame() {
+        dom.start.style.display = 'none';
+        dom.game.style.display = 'block';
+        score = 0;
+        currentFoodIndex = 0;
+        updateStats();
+        loadFood();
+        startTimer();
+    }
+
+    function startTimer() {
+        timeLeft = 100;
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            timeLeft -= 0.5;
+            dom.progressBar.style.width = timeLeft + "%";
+            if (timeLeft <= 0) {
+                handleTimeout();
+            }
+        }, 50);
+    }
+
+    function loadFood() {
+        if (currentFoodIndex >= foods.length) {
+            endGame();
+            return;
+        }
+        const food = foods[currentFoodIndex];
+        dom.emoji.innerText = food.emoji;
+        dom.name.innerText = food.name;
+        dom.desc.innerText = food.desc;
+        dom.feedback.style.display = 'none';
+        startTimer();
+    }
+
+    function makeChoice(choice) {
+        clearInterval(timerInterval);
+        const food = foods[currentFoodIndex];
+        const isCorrect = choice === food.correct;
+        
+        if (isCorrect) {
+            score += 10 + Math.floor(timeLeft / 10);
+            dom.fbIcon.innerText = "✅";
+            dom.fbTitle.innerText = "Mandou bem!";
+            dom.fbTitle.style.color = "var(--primary)";
+        } else {
+            dom.fbIcon.innerText = "❌";
+            dom.fbTitle.innerText = "Poderia ser melhor...";
+            dom.fbTitle.style.color = "var(--danger)";
+        }
+
+        dom.fbMsg.innerHTML = `
+            <p>${food.tips[choice]}</p>
+            <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+            <p><small><strong>Curiosidade Sustentável:</strong> ${food.fact}</small></p>
+        `;
+        
+        dom.feedback.style.display = 'flex';
+        updateStats();
+    }
+
+    function handleTimeout() {
+        clearInterval(timerInterval);
+        dom.fbIcon.innerText = "⏰";
+        dom.fbTitle.innerText = "Tempo Esgotado!";
+        dom.fbMsg.innerText = "O alimento acabou estragando enquanto você decidia. Tente ser mais rápido no próximo!";
+        dom.feedback.style.display = 'flex';
+    }
+
+    function nextFood() {
+        currentFoodIndex++;
+        loadFood();
+    }
+
+    function updateStats() {
+        dom.score.innerText = score;
+        dom.level.innerText = Math.floor(currentFoodIndex + 1);
+    }
+
+    function endGame() {
+        dom.game.style.display = 'none';
+        dom.feedback.style.display = 'none';
+        dom.end.classList.add('active');
+        
+        let rank = "";
+        let msg = "";
+        
+        if (score >= 60) {
+            rank = "🏆 Mestre da Sustentabilidade";
+            msg = `Incrível! Com ${score} pontos, você provou que entende o valor do Agro e do Meio Ambiente.`;
+        } else if (score >= 30) {
+            rank = "🌱 Protetor Consciente";
+            msg = `Bom trabalho! Você fez ${score} pontos. Com um pouco mais de atenção, evitará ainda mais desperdício.`;
+        } else {
+            rank = "👨‍🎓 Aprendiz de Campo";
+            msg = `Você fez ${score} pontos. Que tal tentar de novo para aprender mais sobre como salvar nossos recursos?`;
+        }
+
+        dom.endSummary.innerText = msg;
+        dom.endRank.innerText = rank;
+    }
+
+    function resetGame() {
+        dom.end.classList.remove('active');
+        startGame();
+    }
+</script>
+
+</body>
+</html>
